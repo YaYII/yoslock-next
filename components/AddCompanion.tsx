@@ -500,7 +500,9 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
             </div>
             
           </div>
-          
+          <div className="divkongge">
+
+          </div>
         </div>
       </div>
     );
