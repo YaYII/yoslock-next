@@ -57,7 +57,9 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
   const [mounted, setMounted] = useState(false)
   const [scannedInfo, setScannedInfo] = useState({
     name: 'John Doe',
-    idNumber: 'P123456789'
+    idNumber: 'P123456789',
+    expiryDate: '2025-12-31',
+    birthDate: '1990-01-01'
   })
   const [currentAction, setCurrentAction] = useState(1)
   const verificationActions = [
@@ -70,7 +72,7 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
   const [verificationImage, setVerificationImage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null)
   const verificationInputRef = useRef<HTMLInputElement>(null)
-  const totalSteps = 4
+  const totalSteps = 3
   const [showModal, setShowModal] = useState(false)
   const [modalContent, setModalContent] = useState({ title: '', message: '' })
   const [isLoading, setIsLoading] = useState(false)
@@ -123,24 +125,22 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
     setShowTypeSelector(false)
   }
 
+  //下一步
   const handleNext = () => {
     if (currentStep === 1 && capturedImage) {
       setCurrentStep(2)
     } else if (currentStep === 2) {
       setCurrentStep(3)
-    } else if (currentStep === 3) {
-      setCurrentStep(4)
-    }
+    } 
   }
 
+  //上一步
   const handlePrevious = () => {
     if (currentStep === 2) {
       setCurrentStep(1)
     } else if (currentStep === 3) {
       setCurrentStep(2)
-    } else if (currentStep === 4) {
-      setCurrentStep(3)
-    }
+    } 
   }
 
   const handleVerificationStart = () => {
@@ -162,15 +162,50 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
     }
   };
 
-  const handleManualReview = (fromStep: number) => {
-    if (fromStep === 2) {
-      setNeedManualReview(true)  // 标记需要人工审核
-      setCurrentStep(3)  // 直接进入步骤三
+  const handleManualReview =async (fromStep: number) => {
+    //console.log("number:"+fromStep);
+    
+    if (fromStep === 3) {
+      if (currentStep === 3) {
+        setIsLoading(true)
+        try {
+          // 模拟提交数据
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          setIsLoading(false)
+          setShowSuccess(true)
+          
+          // 根据是否需要人工审核显示不同的提示信息
+          setTimeout(() => {
+            setShowSuccess(false)
+            if (onSubmit) {
+              onSubmit({
+                name: scannedInfo.name,
+                documentType: selectedType?.id,
+                idNumber: scannedInfo.idNumber,
+                expiryDate: scannedInfo.expiryDate,
+                birthDate: scannedInfo.birthDate,
+                needManualReview: true,  // 设置是否需要人工审核
+                fromSearch,
+                verificationImage  
+              });
+            }
+            // 只有在不是从搜索界面来的时候才关闭
+            if (!fromSearch) {
+              onClose();
+            }
+          }, 1500)
+        } catch (error) {
+          setIsLoading(false)
+          // 处理错误...
+        }
+      } else {
+        setCurrentStep(currentStep + 1)
+      }
     }
   }
 
   const handleSubmit = async () => {
-    if (currentStep === 4) {
+    if (currentStep === 3) {
       setIsLoading(true)
       try {
         // 模拟提交数据
@@ -178,7 +213,7 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
         setIsLoading(false)
         setShowSuccess(true)
         
-        // 1.5秒后关闭成功提示并返回
+        // 根据是否需要人工审核显示不同的提示信息
         setTimeout(() => {
           setShowSuccess(false)
           if (onSubmit) {
@@ -186,7 +221,9 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
               name: scannedInfo.name,
               documentType: selectedType?.id,
               idNumber: scannedInfo.idNumber,
-              needManualReview,  
+              expiryDate: scannedInfo.expiryDate,
+              birthDate: scannedInfo.birthDate,
+              needManualReview: false,  // 设置是否需要人工审核
               fromSearch,
               verificationImage  
             });
@@ -205,68 +242,68 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
     }
   }
 
+  // const renderStep3 = () => {
+  //   return (
+  //     <div className="flex flex-col h-[calc(100vh-180px)] overflow-y-auto bg-gray-50">
+  //       <div className="p-4">
+  //         <div className="bg-white rounded-[10px] p-4 space-y-4">
+  //           {/* Info Alert */}
+  //           <div className="bg-[#F9FAFB] rounded-[10px] p-3 flex items-start gap-3">
+  //             <span className="material-icons text-gray-600">info</span>
+  //             <div>
+  //               <div className="text-[15px] font-medium text-gray-900">Please Verify Information</div>
+  //               <div className="text-[12px] text-[#6B7280]">
+  //                 If any information is incorrect, please submit for manual review.
+  //               </div>
+  //             </div>
+  //           </div>
+
+  //           {/* ID Type */}
+  //           <div>
+  //             <div className="text-[15px] text-[#6B7280] mb-1.5">ID Type</div>
+  //             <div className="bg-[#F9FAFB] rounded-[10px] p-3">
+  //               <div className="text-[15px] text-gray-900">
+  //                 {selectedType?.name} {selectedType?.nameZh}
+  //               </div>
+  //             </div>
+  //           </div>
+
+  //           {/* Name */}
+  //           <div>
+  //             <div className="text-[15px] text-[#6B7280] mb-1.5">Name</div>
+  //             <div className="bg-[#F9FAFB] rounded-[10px] p-3">
+  //               <div className="text-[15px] text-gray-900">{scannedInfo.name}</div>
+  //             </div>
+  //           </div>
+
+  //           {/* ID Number */}
+  //           <div>
+  //             <div className="text-[15px] text-[#6B7280] mb-1.5">ID Number</div>
+  //             <div className="bg-[#F9FAFB] rounded-[10px] p-3">
+  //               <div className="text-[15px] text-gray-900">{scannedInfo.idNumber}</div>
+  //             </div>
+  //           </div>
+
+  //           {/* Verification Question */}
+  //           <div className="pt-2">
+  //             <div className="text-[15px] text-gray-900 mb-2">
+  //               Is the scanned information correct?
+  //             </div>
+  //             <button 
+  //               onClick={() => handleManualReview(2)}
+  //               className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border border-gray-200 rounded-[10px] text-[15px] text-gray-900"
+  //             >
+  //               <span className="material-icons text-[20px] text-gray-600">support_agent</span>
+  //               <span>No, Submit for Manual Review</span>
+  //             </button>
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   )
+  // }
+
   const renderStep2 = () => {
-    return (
-      <div className="flex flex-col h-[calc(100vh-180px)] overflow-y-auto bg-gray-50">
-        <div className="p-4">
-          <div className="bg-white rounded-[10px] p-4 space-y-4">
-            {/* Info Alert */}
-            <div className="bg-[#F9FAFB] rounded-[10px] p-3 flex items-start gap-3">
-              <span className="material-icons text-gray-600">info</span>
-              <div>
-                <div className="text-[15px] font-medium text-gray-900">Please Verify Information</div>
-                <div className="text-[12px] text-[#6B7280]">
-                  If any information is incorrect, please submit for manual review.
-                </div>
-              </div>
-            </div>
-
-            {/* ID Type */}
-            <div>
-              <div className="text-[15px] text-[#6B7280] mb-1.5">ID Type</div>
-              <div className="bg-[#F9FAFB] rounded-[10px] p-3">
-                <div className="text-[15px] text-gray-900">
-                  {selectedType?.name} {selectedType?.nameZh}
-                </div>
-              </div>
-            </div>
-
-            {/* Name */}
-            <div>
-              <div className="text-[15px] text-[#6B7280] mb-1.5">Name</div>
-              <div className="bg-[#F9FAFB] rounded-[10px] p-3">
-                <div className="text-[15px] text-gray-900">{scannedInfo.name}</div>
-              </div>
-            </div>
-
-            {/* ID Number */}
-            <div>
-              <div className="text-[15px] text-[#6B7280] mb-1.5">ID Number</div>
-              <div className="bg-[#F9FAFB] rounded-[10px] p-3">
-                <div className="text-[15px] text-gray-900">{scannedInfo.idNumber}</div>
-              </div>
-            </div>
-
-            {/* Verification Question */}
-            <div className="pt-2">
-              <div className="text-[15px] text-gray-900 mb-2">
-                Is the scanned information correct?
-              </div>
-              <button 
-                onClick={() => handleManualReview(2)}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border border-gray-200 rounded-[10px] text-[15px] text-gray-900"
-              >
-                <span className="material-icons text-[20px] text-gray-600">support_agent</span>
-                <span>No, Submit for Manual Review</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const renderStep3 = () => {
     return (
       <div className="flex flex-col h-[calc(100vh-180px)] overflow-y-auto bg-gray-50">
         <div className="p-4">
@@ -430,8 +467,40 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
                   <div className="text-[15px] text-gray-900">{maskedIdNumber}</div>
                 </div>
               </div>
+
+              {/* Expiry Date */}
+              <div>
+                <div className="text-[15px] text-[#6B7280] mb-2">Expiry Date</div>
+                <div className="bg-[#F9FAFB] rounded-[10px] p-3">
+                  <div className="text-[15px] text-gray-900">{scannedInfo.expiryDate}</div>
+                </div>
+              </div>
+
+              {/* Birth Date */}
+              <div>
+                <div className="text-[15px] text-[#6B7280] mb-2">Birth Date</div>
+                <div className="bg-[#F9FAFB] rounded-[10px] p-3">
+                  <div className="text-[15px] text-gray-900">{scannedInfo.birthDate}</div>
+                </div>
+              </div>
+
+              {/* Verification Question */}
+            <div className="pt-2">
+              <div className="text-[15px] text-gray-900 mb-2">
+                Is the scanned information correct?
+              </div>
+              <button 
+                onClick={() => handleManualReview(3)}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border border-gray-200 rounded-[10px] text-[15px] text-gray-900"
+              >
+                <span className="material-icons text-[20px] text-gray-600">support_agent</span>
+                <span>No, Submit for Manual Review</span>
+              </button>
             </div>
+            </div>
+            
           </div>
+          
         </div>
       </div>
     );
@@ -532,7 +601,8 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
       ) : currentStep === 2 ? (
         renderStep2()
       ) : currentStep === 3 ? (
-        renderStep3()
+        //renderStep3()
+        renderStep4()
       ) : currentStep === 4 ? (
         renderStep4()
       ) : null}
@@ -661,7 +731,7 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
                 </>
               ) : showSuccess ? (
                 <span>Completed</span>
-              ) : currentStep === 4 ? (
+              ) : currentStep === 3 ? (
                 'Submit'
               ) : (
                 'Continue'
