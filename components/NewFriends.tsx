@@ -24,7 +24,7 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
       name: 'Zhang xiao',
       description: 'Mainland China ID: *****381',
       status: 'requested' as const,
-      timestamp: '刚刚',
+      timestamp: 'Just now',
       createdAt: Date.now()
     },{
       id: '5',
@@ -32,7 +32,7 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
       name: 'Zhang Wei',
       description: 'Mainland China ID: *****789',
       status: 'requested' as const,
-      timestamp: '1分钟前',
+      timestamp: '1 minute ago',
       createdAt: Date.now()
     },
     {
@@ -41,7 +41,7 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
       name: 'John Smith',
       description: 'Passport: *****567',
       status: 'pending' as const,
-      timestamp: '2小时前',
+      timestamp: '2 hours ago',
       createdAt: Date.now() - 2 * 60 * 60 * 1000
     },
     {
@@ -50,7 +50,7 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
       name: 'Chen anjie',
       description: 'Hong Kong ID: *****56(7)',
       status: 'expired' as const,
-      timestamp: '一天前',
+      timestamp: '1 day ago',
       createdAt: Date.now() - 24 * 60 * 60 * 1000
     },
     {
@@ -59,7 +59,7 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
       name: 'V_cgliu',
       description: 'Mainland China ID: *****234',
       status: 'expired' as const,
-      timestamp: '一天前',
+      timestamp: '1 day ago',
       createdAt: Date.now() - 25 * 60 * 60 * 1000
     },
     {
@@ -68,12 +68,12 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
       name: 'Chen Xiaoming1',
       description: 'Hong Kong ID: *****56(7)',
       status: 'expired' as const,
-      timestamp: '三天前',
+      timestamp: '3 days ago',
       createdAt: Date.now() - 3 * 24 * 60 * 60 * 1000
     }
   ].sort((a, b) => b.createdAt - a.createdAt));
 
-  // 当外部请求变化时更新列表
+  // Update list when external requests change
   useEffect(() => {
     if (externalRequests && externalRequests.length > 0) {
       setRequests(prevRequests => {
@@ -88,27 +88,27 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
     }
   }, [externalRequests]);
 
-  // 添加调试日志
+  // Add debug logs
   useEffect(() => {
     console.log('Current requests:', requests);
   }, [requests]);
 
-  // 添加格式化时间的函数
+  // Add timestamp formatting function
   const formatTimestamp = (timestamp: number) => {
     const now = Date.now();
     const diff = now - timestamp;
     
-    if (diff < 60 * 1000) { // 小于1分钟
-      return '刚刚发送';
-    } else if (diff < 60 * 60 * 1000) { // 小于1小时
+    if (diff < 60 * 1000) { // less than 1 minute
+      return 'Just now';
+    } else if (diff < 60 * 60 * 1000) { // less than 1 hour
       const minutes = Math.floor(diff / (60 * 1000));
-      return `${minutes}分钟前`;
-    } else if (diff < 24 * 60 * 60 * 1000) { // 小于24小时
+      return `${minutes} minutes ago`;
+    } else if (diff < 24 * 60 * 60 * 1000) { // less than 24 hours
       const hours = Math.floor(diff / (60 * 60 * 1000));
-      return `${hours}小时前`;
+      return `${hours} hours ago`;
     } else {
       const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-      return `${days}天前`;
+      return `${days} days ago`;
     }
   };
 
@@ -117,7 +117,7 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
       if (event.data.type === 'ADD_FRIEND_REQUEST') {
         const newRequest = {
           ...event.data.request,
-          timestamp: '刚刚发送'  // 设置初始时间戳
+          timestamp: 'Just now'  // Set initial timestamp
         };
         setRequests(prevRequests => [newRequest, ...prevRequests]);
       }
@@ -127,7 +127,7 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // 添加定时更新时间的效果
+  // Add timer effect to update timestamps
   useEffect(() => {
     const timer = setInterval(() => {
       setRequests(prevRequests => 
@@ -175,7 +175,7 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
   };
 
   const handleReject = (id: string) => {
-    // 只更新状态，不删除
+    // Only update status, don't delete
     setRequests(prevRequests => 
       prevRequests.map(request => 
         request.id === id 
@@ -188,9 +188,9 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
   return (
     <div className="bg-white rounded-xl">
       <div className="p-4 flex items-center justify-between border-b border-gray-100">
-        <h2 className="text-[17px] font-medium">新的朋友</h2>
+        <h2 className="text-[17px] font-medium">New Friends</h2>
         {pendingCount > 0 && (
-          <span className="text-[13px] text-red-500">{pendingCount}个新的朋友</span>
+          <span className="text-[13px] text-red-500">{pendingCount} new friend{pendingCount > 1 ? 's' : ''}</span>
         )}
       </div>
 
@@ -217,23 +217,23 @@ export default function NewFriends({ requests: externalRequests = [] }: NewFrien
             </div>
             <div className="flex justify-between items-center mt-3">
               <div className="text-[15px] text-gray-500">
-                {request.status === 'pending' && '等待验证'}
-                {request.status === 'expired' && '已过期'}
-                {request.status === 'added' && '已添加'}
-                {request.status === 'rejected' && '已拒绝'}
+                {request.status === 'pending' && 'Pending Verification'}
+                {request.status === 'expired' && 'Expired'}
+                {request.status === 'added' && 'Added'}
+                {request.status === 'rejected' && 'Rejected'}
                 {request.status === 'requested' && (
                   <div className="flex gap-3">
                     <button
                       onClick={() => handleReject(request.id)}
                       className="px-6 py-1.5 border border-gray-200 rounded-full text-gray-900"
                     >
-                      拒绝
+                      Reject
                     </button>
                     <button
                       onClick={() => handleAccept(request.id)}
                       className="px-6 py-1.5 bg-gray-900 text-white rounded-full"
                     >
-                      同意
+                      Accept
                     </button>
                   </div>
                 )}

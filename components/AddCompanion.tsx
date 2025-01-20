@@ -589,7 +589,7 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </div>
-            <p className="text-gray-900">提交中...</p>
+            <p className="text-gray-900">Submitting...</p>
           </div>
         </div>
       )}
@@ -601,9 +601,9 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
             <div className="flex justify-center mb-4">
               <span className="material-icons text-green-500 text-4xl">check_circle</span>
             </div>
-            <p className="text-gray-900">{needManualReview ? '申请已提交' : '提交成功'}</p>
+            <p className="text-gray-900">{needManualReview ? 'Application Submitted' : 'Submission Successful'}</p>
             <p className="text-gray-500 text-sm mt-1">
-              {needManualReview ? '我们的工作人员会尽快处理' : '您的信息已成功提交'}
+              {needManualReview ? 'Our staff will process it as soon as possible' : 'Your information has been successfully submitted'}
             </p>
           </div>
         </div>
@@ -657,10 +657,10 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>提交中...</span>
+                  <span>Submitting...</span>
                 </>
               ) : showSuccess ? (
-                <span>已完成</span>
+                <span>Completed</span>
               ) : currentStep === 4 ? (
                 'Submit'
               ) : (
