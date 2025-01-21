@@ -534,11 +534,11 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
       </div>
 
       {/* Steps Indicator */}
-      <div className="px-2 py-3 flex justify-between bg-white border-b border-gray-100">
+      <div className="px-2 py-3 flex bg-white border-b border-gray-100">
         {Array.from({ length: totalSteps }).map((_, index) => (
           <div 
             key={index}
-            className={`px-5 py-2.5 rounded-[10px] text-[12px] ${
+            className={`flex-1 text-center mx-1 py-2.5 rounded-[10px] text-[12px] ${
               index + 1 === currentStep 
                 ? 'bg-white text-gray-900 shadow-[0_2px_8px_rgba(0,0,0,0.08)]' 
                 : 'text-[#9CA3AF]'
