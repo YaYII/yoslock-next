@@ -402,9 +402,17 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
         <div className="p-4">
           <div className="bg-white rounded-[10px] p-4">
             {/* Title */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-4">
               <h2 className="text-[15px] font-medium text-gray-900">Document Verification</h2>
               <p className="text-[12px] text-[#6B7280] mt-1">Please confirm your document information</p>
+            </div>
+
+            {/* Verification Status */}
+            <div className="mb-6 flex items-center justify-center">
+              <div className="bg-green-50 text-green-700 px-4 py-2 rounded-full flex items-center gap-2">
+                <span className="material-icons text-[20px]">check_circle</span>
+                <span className="text-[14px]">Document and photo verification passed</span>
+              </div>
             </div>
 
             {/* Document Photos */}
