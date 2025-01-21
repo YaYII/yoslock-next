@@ -310,8 +310,8 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
           <div className="bg-white rounded-[10px] p-4">
             {/* Title */}
             <div className="text-center mb-8">
-              <h2 className="text-[15px] font-medium text-gray-900">Live Face Verification</h2>
-              <p className="text-[12px] text-[#6B7280] mt-1">Please follow the instructions</p>
+              <h2 className="text-[15px] font-medium text-gray-900">Comparison between ID photo and real - time face verification</h2>
+              <p className="text-[12px] text-[#6B7280] mt-1">Please follow the prompts to complete the face comparison.</p>
             </div>
 
             {/* Action Icon and Text */}
