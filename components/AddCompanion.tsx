@@ -707,7 +707,8 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
           <div className="flex gap-3">
             <button
               onClick={() => setCurrentStep(currentStep + 1)}
-              className="flex-1 py-3 bg-black text-white rounded-full text-[15px]"
+              disabled={!verificationImage}
+              className={`flex-1 py-3 rounded-full text-[15px] ${!verificationImage ? 'bg-gray-100 text-gray-400' : 'bg-black text-white'}`}
             >
               Yes, Continue
             </button>
