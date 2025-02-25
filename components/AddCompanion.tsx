@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { isIOS, isAndroid, isBrowser } from '../utils/deviceDetect'
+import ReactCrop, { Crop } from 'react-image-crop'
+import 'react-image-crop/dist/ReactCrop.css'
 
 interface DocumentType {
   id: string
@@ -54,6 +56,16 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [showTypeSelector, setShowTypeSelector] = useState(false)
   const [selectedType, setSelectedType] = useState<DocumentType | null>(null)
+  const [crop, setCrop] = useState<Crop>({
+    unit: '%',
+    width: 90,
+    height: 90,
+    x: 5,
+    y: 5
+  })
+  const [showCrop, setShowCrop] = useState(false)
+  const [croppedImage, setCroppedImage] = useState<string | null>(null)
+  const imageRef = useRef<HTMLImageElement | null>(null)
   const [mounted, setMounted] = useState(false)
   const [scannedInfo, setScannedInfo] = useState({
     name: 'John Doe',
@@ -78,9 +90,54 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [needManualReview, setNeedManualReview] = useState(false)
+  const [isVideoReady, setIsVideoReady] = useState(false);
 
   useEffect(() => {
     setMounted(true)
+    // 组件加载时主动请求摄像头权限
+    const requestCameraPermission = async () => {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('您的浏览器不支持访问摄像头')
+        }
+
+        // 对于iOS设备，直接尝试获取摄像头权限
+        if (typeof navigator.permissions?.query !== 'function') {
+          await navigator.mediaDevices.getUserMedia({ 
+            video: {
+              facingMode: 'environment'
+            }
+          })
+          .then(stream => {
+            // 获取权限后立即停止视频流
+            stream.getTracks().forEach(track => track.stop())
+          })
+          return
+        }
+
+        // 对于支持permissions API的设备
+        const permissionResult = await navigator.permissions.query({ name: 'camera' as PermissionName })
+        if (permissionResult.state === 'prompt' || permissionResult.state === 'denied') {
+          await navigator.mediaDevices.getUserMedia({ 
+            video: {
+              facingMode: 'environment'
+            }
+          })
+          .then(stream => {
+            stream.getTracks().forEach(track => track.stop())
+          })
+        }
+      } catch (err) {
+        console.error('摄像头权限请求失败:', err)
+        setModalContent({
+          title: '摄像头权限请求失败',
+          message: '请确保您已在iOS设置中允许浏览器访问摄像头，并确保使用HTTPS连接。'
+        })
+        setShowModal(true)
+      }
+    }
+
+    requestCameraPermission()
   }, [])
 
   useEffect(() => {
@@ -96,21 +153,203 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
       reader.onloadend = () => {
         setCapturedImage(reader.result as string)
         setSelectedType(null)
+        setShowCrop(true)
       }
       reader.readAsDataURL(file)
     }
   }
 
-  const openCamera = () => {
-    if (!mounted) return
-    
-    if (fileInputRef.current) {
-      if (isIOS()) {
-        fileInputRef.current.setAttribute('capture', 'environment')
-      }
-      fileInputRef.current.click()
-    }
+  const getCroppedImg = () => {
+    if (!imageRef.current || !crop.width || !crop.height) return
+
+    const canvas = document.createElement('canvas')
+    const scaleX = imageRef.current.naturalWidth / imageRef.current.width
+    const scaleY = imageRef.current.naturalHeight / imageRef.current.height
+    canvas.width = crop.width
+    canvas.height = crop.height
+    const ctx = canvas.getContext('2d')
+
+    if (!ctx) return
+
+    ctx.drawImage(
+      imageRef.current,
+      crop.x * scaleX,
+      crop.y * scaleY,
+      crop.width * scaleX,
+      crop.height * scaleY,
+      0,
+      0,
+      crop.width,
+      crop.height
+    )
+
+    const base64Image = canvas.toDataURL('image/jpeg')
+    setCroppedImage(base64Image)
+    setCapturedImage(base64Image)
+    setShowCrop(false)
   }
+
+  const [showCamera, setShowCamera] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const openCamera = async () => {
+    if (!mounted) return;
+    console.log("openCamera:1");
+    
+    try {
+      // 先检查是否支持getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('您的浏览器不支持访问摄像头');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          facingMode: 'environment',
+          aspectRatio: 1920/1080
+        }
+      });
+      
+      setStream(stream);
+      setIsVideoReady(false); // 重置视频就绪状态
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadeddata = () => {
+          setIsVideoReady(true);
+        };
+      }
+      
+      setShowCamera(true);
+    } catch (err) {
+      console.error('相机初始化失败:', err);
+      setModalContent({
+        title: '相机初始化失败',
+        message: '请确保您已授予相机访问权限，并且设备摄像头可用。'
+      });
+      setShowModal(true);
+    }
+  };
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.onloadeddata = () => {
+        setIsVideoReady(true);
+      };
+    }
+  }, [videoRef.current]);
+
+const initializeCamera = async (options: MediaTrackConstraints) => {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('您的浏览器不支持访问摄像头');
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: options
+    });
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.onloadeddata = () => {
+        setIsVideoReady(true);
+      };
+    }
+    setShowCamera(true);
+    return stream;
+  } catch (err) {
+    console.error('摄像头初始化失败:', err);
+    setModalContent({
+      title: '摄像头初始化失败',
+      message: '请确保您已授予相机访问权限，并且设备摄像头可用。'
+    });
+    setShowModal(true);
+    throw err;
+  }
+};
+
+const takePhoto = async () => {
+  if (!mounted) return;
+  try {
+    // 先检查是否支持getUserMedia
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('您的浏览器不支持访问摄像头');
+    }
+
+    setIsVerifying(true);
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    });
+    
+    setStream(stream);
+    setIsVideoReady(false); // 重置视频就绪状态
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.onloadeddata = () => {
+        setIsVideoReady(true);
+      };
+    }
+    
+    setShowCamera(true);
+  } catch (err) {
+    console.error('相机初始化失败:', err);
+    setModalContent({
+      title: '相机初始化失败',
+      message: '请确保您已授予相机访问权限，并且设备摄像头可用。'
+    });
+    setShowModal(true);
+    setIsVerifying(false);
+  }
+};
+
+//拍照按钮。
+const takeEndPhoto = async ()=>{
+  if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // 设置canvas尺寸为视频的实际尺寸
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // 在canvas上绘制当前视频帧
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 将canvas内容转换为图片URL
+    const imageUrl = canvas.toDataURL('image/jpeg', 0.8);
+    setCroppedImage(imageUrl);
+
+    // 停止视频流
+    const stream = video.srcObject as MediaStream;
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    video.srcObject = null;
+    setShowCamera(false);
+    setIsVerifying(false);
+}
+
+  useEffect(() => {
+    return () => {
+      // 组件卸载时清理视频流
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
 
   const retakePhoto = () => {
     setCapturedImage(null)
@@ -143,23 +382,48 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
     } 
   }
 
-  const handleVerificationStart = () => {
+  //步骤二中的摄像功能，
+  const handleVerificationStart = async () => {
     setIsVerifying(true);
-    if (verificationInputRef.current) {
-      verificationInputRef.current.click();
+    try {
+      await initializeCamera({
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: 'user'
+      });
+    } catch (err) {
+      setIsVerifying(false);
     }
   };
 
-  const handleVerificationCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setVerificationImage(imageUrl);
+  const handleVerificationCapture = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // 设置canvas尺寸为视频的实际尺寸
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // 在canvas上绘制当前视频帧
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 将canvas内容转换为图片URL
+    const imageUrl = canvas.toDataURL('image/jpeg', 0.8);
+    setVerificationImage(imageUrl);
+
+    // 停止视频流
+    const stream = video.srcObject as MediaStream;
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
     }
-    // Reset input
-    if (event.target) {
-      event.target.value = '';
-    }
+    video.srcObject = null;
+    setShowCamera(false);
+    setIsVerifying(false);
   };
 
   const handleManualReview =async (fromStep: number) => {
@@ -242,67 +506,6 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
     }
   }
 
-  // const renderStep3 = () => {
-  //   return (
-  //     <div className="flex flex-col h-[calc(100vh-180px)] overflow-y-auto bg-gray-50">
-  //       <div className="p-4">
-  //         <div className="bg-white rounded-[10px] p-4 space-y-4">
-  //           {/* Info Alert */}
-  //           <div className="bg-[#F9FAFB] rounded-[10px] p-3 flex items-start gap-3">
-  //             <span className="material-icons text-gray-600">info</span>
-  //             <div>
-  //               <div className="text-[15px] font-medium text-gray-900">Please Verify Information</div>
-  //               <div className="text-[12px] text-[#6B7280]">
-  //                 If any information is incorrect, please submit for manual review.
-  //               </div>
-  //             </div>
-  //           </div>
-
-  //           {/* ID Type */}
-  //           <div>
-  //             <div className="text-[15px] text-[#6B7280] mb-1.5">ID Type</div>
-  //             <div className="bg-[#F9FAFB] rounded-[10px] p-3">
-  //               <div className="text-[15px] text-gray-900">
-  //                 {selectedType?.name} {selectedType?.nameZh}
-  //               </div>
-  //             </div>
-  //           </div>
-
-  //           {/* Name */}
-  //           <div>
-  //             <div className="text-[15px] text-[#6B7280] mb-1.5">Name</div>
-  //             <div className="bg-[#F9FAFB] rounded-[10px] p-3">
-  //               <div className="text-[15px] text-gray-900">{scannedInfo.name}</div>
-  //             </div>
-  //           </div>
-
-  //           {/* ID Number */}
-  //           <div>
-  //             <div className="text-[15px] text-[#6B7280] mb-1.5">ID Number</div>
-  //             <div className="bg-[#F9FAFB] rounded-[10px] p-3">
-  //               <div className="text-[15px] text-gray-900">{scannedInfo.idNumber}</div>
-  //             </div>
-  //           </div>
-
-  //           {/* Verification Question */}
-  //           <div className="pt-2">
-  //             <div className="text-[15px] text-gray-900 mb-2">
-  //               Is the scanned information correct?
-  //             </div>
-  //             <button 
-  //               onClick={() => handleManualReview(2)}
-  //               className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border border-gray-200 rounded-[10px] text-[15px] text-gray-900"
-  //             >
-  //               <span className="material-icons text-[20px] text-gray-600">support_agent</span>
-  //               <span>No, Submit for Manual Review</span>
-  //             </button>
-  //           </div>
-  //         </div>
-  //       </div>
-  //     </div>
-  //   )
-  // }
-
   const renderStep2 = () => {
     return (
       <div className="flex flex-col h-[calc(100vh-180px)] overflow-y-auto bg-gray-50">
@@ -322,34 +525,41 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
               <p className="text-[15px] text-gray-900">Please blink your eyes</p>
             </div>
 
-            {/* Circle Indicator / Preview */}
-            <div 
-              className="relative w-[200px] h-[200px] mx-auto mb-4"
-              onClick={!verificationImage ? handleVerificationStart : undefined}
-            >
-              {verificationImage ? (
+            {/* Camera Preview / Captured Image */}
+            <div className="relative w-[280px] h-[280px] mx-auto mb-4 rounded-full overflow-hidden">
+              {showCamera ? (
+                <div className="relative w-full h-full bg-black">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+                  
+                  {/* 拍照按钮 */}
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                    <button
+                      onClick={handleVerificationCapture}
+                      className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg"
+                    >
+                      <span className="material-icons text-gray-900 text-2xl">photo_camera</span>
+                    </button>
+                  </div>
+                </div>
+              ) : verificationImage ? (
                 <img 
                   src={verificationImage} 
                   alt="Verification" 
-                  className="w-full h-full object-cover rounded-full"
+                  className="w-full h-full object-cover"
                 />
               ) : (
-                <>
-                  <div className="absolute inset-0 bg-[#F9FAFB] rounded-full cursor-pointer"></div>
-                  <svg className="absolute inset-0 w-full h-full rotate-180" viewBox="0 0 100 100">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="45"
-                      fill="none"
-                      stroke="#E5E7EB"
-                      strokeWidth="2"
-                      strokeDasharray="4 4"
-                    />
-                    <circle cx="5" cy="50" r="3" fill="#111827" />
-                    <circle cx="95" cy="50" r="3" fill="#111827" />
-                  </svg>
-                </>
+                <div 
+                  className="w-full h-full bg-[#F9FAFB] flex items-center justify-center cursor-pointer"
+                  onClick={handleVerificationStart}
+                >
+                  <span className="material-icons text-gray-400 text-4xl">face</span>
+                </div>
               )}
             </div>
 
@@ -562,13 +772,36 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
               {capturedImage && (
                 <button
                   onClick={retakePhoto}
+                  //onClick={handleVerificationStart}
                   className="w-8 h-8 flex items-center justify-center"
                 >
                   <span className="material-icons text-gray-600">refresh</span>
                 </button>
               )}
             </div>
-            {capturedImage ? (
+            {showCrop && capturedImage ? (
+              <div className="relative bg-white rounded-[10px] overflow-hidden h-[200px] border-2 border-dashed border-gray-300">
+                <ReactCrop
+                  crop={crop}
+                  onChange={(c) => setCrop(c)}
+                  aspect={320/280}
+                  className="max-h-[200px]"
+                >
+                  <img
+                    ref={imageRef}
+                    src={capturedImage}
+                    alt="Captured ID"
+                    className="max-h-[200px] w-auto mx-auto"
+                  />
+                </ReactCrop>
+                <button
+                  onClick={getCroppedImg}
+                  className="absolute bottom-2 right-2 bg-black text-white px-3 py-1 rounded-full text-sm"
+                >
+                  确认裁剪
+                </button>
+              </div>
+            ) : capturedImage ? (
               <div className="relative bg-white rounded-[10px] overflow-hidden h-[200px] border-2 border-dashed border-gray-300">
                 <img
                   src={capturedImage}
@@ -577,20 +810,45 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
                 />
               </div>
             ) : (
-              <button 
-                onClick={openCamera}
-                className="w-full bg-white rounded-[10px] p-6 flex items-center gap-4 border-2 border-dashed border-gray-300"
+              <div className="relative w-full"
+              onClick={takePhoto}
               >
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="material-icons text-gray-400 text-2xl">document_scanner</span>
+                <div className="relative w-full bg-black rounded-[10px] overflow-hidden">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-[280px] object-cover"
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+                  
+                  {/* 取景框和辅助线 */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-[320px] h-[280px] border-2 border-white border-opacity-50 rounded-lg flex items-center justify-center">
+                      {/* 横向辅助线 */}
+                      <div className="absolute top-1/3 left-0 right-0 border-t border-white border-opacity-30"></div>
+                      <div className="absolute bottom-1/3 left-0 right-0 border-t border-white border-opacity-30"></div>
+                      {/* 纵向辅助线 */}
+                      <div className="absolute left-1/3 top-0 bottom-0 border-l border-white border-opacity-30"></div>
+                      <div className="absolute right-1/3 top-0 bottom-0 border-l border-white border-opacity-30"></div>
+                      {/* 拍摄提示 */}
+                      <div className="absolute bottom-4 left-0 right-0 text-center text-white text-xs bg-black bg-opacity-50 py-1">
+                        请将证件放入框内，并对齐辅助线
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 拍照按钮 */}
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                    <button
+                      onClick={takeEndPhoto}
+                      className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg"
+                    >
+                      <span className="material-icons text-gray-900 text-2xl">photo_camera</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h2 className="text-[15px] font-medium text-gray-900">Scan ID Document</h2>
-                  <p className="text-[12px] text-gray-500">
-                    Please scan your ID document first
-                  </p>
-                </div>
-              </button>
+              </div>
             )}
           </div>
 
@@ -696,6 +954,14 @@ export default function AddCompanion({ onClose, onSubmit, fromSearch }: AddCompa
             <div className="text-center mb-6">
               <h3 className="text-lg font-medium mb-2">{modalContent.title}</h3>
               <p className="text-gray-600 text-[15px]">{modalContent.message}</p>
+            </div>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-6 py-2 bg-black text-white rounded-full text-[15px]"
+              >
+                确认
+              </button>
             </div>
           </div>
         </div>
